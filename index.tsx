@@ -67,7 +67,12 @@ const Dictionary = () => {
     const [result, setResult] = useState(null);
 
     const handleSearch = async () => {
-        if (!query.trim() || !ai) return;
+        if (!query.trim()) return;
+        if (!ai) {
+            setError("The AI model could not be initialized. Please check your API key.");
+            return;
+        }
+        
         setLoading(true);
         setError('');
         setResult(null);
@@ -187,15 +192,6 @@ const Vocabulary = () => {
 // --- MAIN APP COMPONENT ---
 const App = () => {
     const [activeTab, setActiveTab] = useState('dictionary');
-
-    if (!ai) {
-        return (
-            <div className="app-container">
-                 <header><h1>Spanish-English Learning Hub</h1></header>
-                 <ErrorMessage message="Could not initialize the AI model. Please check your API key and refresh the page."/>
-            </div>
-        )
-    }
 
     return (
         <div className="app-container">
