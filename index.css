@@ -231,6 +231,62 @@ textarea {
     vertical-align: middle;
 }
 
+.sub-tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sub-tab-button {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #7f8c8d;
+    position: relative;
+    transition: color 0.3s;
+}
+
+.sub-tab-button.active {
+    color: var(--accent-color);
+}
+
+.sub-tab-button.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: var(--accent-color);
+    border-radius: 3px 3px 0 0;
+}
+
+.correction-result ul {
+    list-style: none;
+    padding: 0;
+}
+
+.correction-result li {
+    background-color: #f8f9f9;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--accent-color);
+}
+
+.transcribed-text {
+    font-style: italic;
+    color: #7f8c8d;
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f8f9f9;
+    border-radius: 8px;
+}
+
 .vocab-categories {
     display: flex;
     flex-wrap: wrap;

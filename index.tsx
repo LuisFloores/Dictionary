@@ -24,24 +24,6 @@ const vocabularyData = {
         { spanish: "Me gustaría pedir...", english: "I would like to order..." },
         { spanish: "Delicioso", english: "Delicious" },
     ],
-    Animals: [
-        { spanish: "Perro", english: "Dog" },
-        { spanish: "Gato", english: "Cat" },
-        { spanish: "Pájaro", english: "Bird" },
-        { spanish: "Pez", english: "Fish" },
-    ],
-    "School Supplies": [
-        { spanish: "Lápiz", english: "Pencil" },
-        { spanish: "Libro", english: "Book" },
-        { spanish: "Mochila", english: "Backpack" },
-        { spanish: "Tijeras", english: "Scissors" },
-    ],
-    Fruits: [
-        { spanish: "Manzana", english: "Apple" },
-        { spanish: "Plátano", english: "Banana" },
-        { spanish: "Naranja", english: "Orange" },
-        { spanish: "Fresa", english: "Strawberry" },
-    ],
 };
 
 type VocabCategory = keyof typeof vocabularyData;
@@ -67,12 +49,7 @@ const Dictionary = () => {
     const [result, setResult] = useState(null);
 
     const handleSearch = async () => {
-        if (!query.trim()) return;
-        if (!ai) {
-            setError("The AI model could not be initialized. Please check your API key.");
-            return;
-        }
-        
+        if (!query.trim() || !ai) return;
         setLoading(true);
         setError('');
         setResult(null);
@@ -148,6 +125,194 @@ const Dictionary = () => {
     );
 };
 
+// --- PRACTICE COMPONENT ---
+const Practice = () => {
+    const [mode, setMode] = useState('text');
+    return (
+        <div>
+             <h2><Icon name="model_training" /> Practice Arena</h2>
+            <div className="sub-tabs">
+                <button className={`sub-tab-button ${mode === 'text' ? 'active' : ''}`} onClick={() => setMode('text')}>Text Correction</button>
+                <button className={`sub-tab-button ${mode === 'voice' ? 'active' : ''}`} onClick={() => setMode('voice')}>Pronunciation Practice</button>
+            </div>
+            {mode === 'text' && <TextCorrection />}
+            {mode === 'voice' && <PronunciationPractice />}
+        </div>
+    );
+};
+
+const TextCorrection = () => {
+    const [text, setText] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [corrections, setCorrections] = useState(null);
+
+    const handleCheck = async () => {
+        if (!text.trim() || !ai) return;
+        setLoading(true);
+        setError('');
+        setCorrections(null);
+        try {
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: `You are a language tutor. Analyze the following text and provide grammar and spelling corrections. For each correction, explain the error simply. Text: "${text}"`,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            corrections: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        original: { type: Type.STRING },
+                                        corrected: { type: Type.STRING },
+                                        explanation: { type: Type.STRING }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            const data = JSON.parse(response.text);
+            setCorrections(data.corrections);
+        } catch (err) {
+            console.error(err);
+            setError("Could not process the text. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div>
+            <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Write some text in Spanish or English to get it corrected..."
+                aria-label="Text for correction"
+            />
+            <button className="btn" style={{marginTop: '1rem', width: '100%'}} onClick={handleCheck} disabled={loading}>
+                 <Icon name="spellcheck"/> {loading ? 'Analyzing...' : 'Check Text'}
+            </button>
+            {loading && <Loader />}
+            {error && <ErrorMessage message={error} />}
+            {corrections && (
+                <div className="result-card correction-result">
+                    <h3>Corrections</h3>
+                    {corrections.length > 0 ? (
+                        <ul>
+                            {corrections.map((c, i) => (
+                                <li key={i}>
+                                    <p><strong>Original:</strong> <del>{c.original}</del></p>
+                                    <p><strong>Correction:</strong> <ins style={{textDecoration: 'none', color: 'var(--success-color)'}}>{c.corrected}</ins></p>
+                                    <p><strong>Explanation:</strong> {c.explanation}</p>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : <p>Looks good! No corrections found.</p>}
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+const PronunciationPractice = () => {
+    const PHRASE = "The quick brown fox jumps over the lazy dog.";
+    const [isRecording, setIsRecording] = useState(false);
+    const [transcribedText, setTranscribedText] = useState('');
+    const [feedback, setFeedback] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [recognition, setRecognition] = useState(null);
+
+    useEffect(() => {
+        // FIX: Cast window to `any` to access non-standard SpeechRecognition APIs which are not part of the default Window type.
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recog = new SpeechRecognition();
+            recog.continuous = false;
+            recog.interimResults = false;
+            recog.lang = 'en-US';
+            recog.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                setTranscribedText(transcript);
+                getFeedback(transcript);
+            };
+            recog.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                setIsRecording(false);
+            };
+            recog.onend = () => {
+                setIsRecording(false);
+            };
+            setRecognition(recog);
+        }
+    }, []);
+
+    const toggleRecording = () => {
+        if (!recognition) return;
+        if (isRecording) {
+            recognition.stop();
+        } else {
+            setTranscribedText('');
+            setFeedback('');
+            recognition.start();
+        }
+        setIsRecording(!isRecording);
+    };
+
+    const getFeedback = async (transcript) => {
+        if (!transcript || !ai) return;
+        setLoading(true);
+        setFeedback('');
+        try {
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: `A user is practicing their English pronunciation.
+                The target phrase is: "${PHRASE}"
+                The user said: "${transcript}"
+                Provide brief, constructive feedback on their pronunciation, pointing out one or two key areas for improvement. Be encouraging.`
+            });
+            setFeedback(response.text);
+        } catch (err) {
+            console.error(err);
+            setFeedback("Sorry, couldn't get feedback right now.");
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    const speakPhrase = () => {
+        const utterance = new SpeechSynthesisUtterance(PHRASE);
+        utterance.lang = 'en-US';
+        window.speechSynthesis.speak(utterance);
+    };
+
+    if (!recognition) {
+        return <ErrorMessage message="Speech recognition is not supported by your browser." />;
+    }
+
+    return (
+        <div style={{textAlign: 'center'}}>
+            <p>Practice saying this phrase:</p>
+            <h3 style={{margin: '1rem 0'}}>
+                {PHRASE}
+                <button onClick={speakPhrase} className="pronounce-btn" aria-label="Listen to phrase"><Icon name="volume_up"/></button>
+            </h3>
+            <button className="btn" onClick={toggleRecording}>
+                <Icon name={isRecording ? 'stop_circle' : 'mic'}/> {isRecording ? 'Stop Recording' : 'Start Recording'}
+            </button>
+            {transcribedText && <p className="transcribed-text">You said: "{transcribedText}"</p>}
+            {loading && <Loader />}
+            {feedback && <div className="result-card"><p>{feedback}</p></div>}
+        </div>
+    );
+};
+
+
 // --- VOCABULARY COMPONENT ---
 const Vocabulary = () => {
     const [category, setCategory] = useState<VocabCategory>('Greetings');
@@ -193,6 +358,15 @@ const Vocabulary = () => {
 const App = () => {
     const [activeTab, setActiveTab] = useState('dictionary');
 
+    if (!ai) {
+        return (
+            <div className="app-container">
+                 <header><h1>Spanish-English Learning Hub</h1></header>
+                 <ErrorMessage message="Could not initialize the AI model. Please check your API key and refresh the page."/>
+            </div>
+        )
+    }
+
     return (
         <div className="app-container">
             <header>
@@ -203,6 +377,9 @@ const App = () => {
                 <button className={`tab-button ${activeTab === 'dictionary' ? 'active' : ''}`} onClick={() => setActiveTab('dictionary')}>
                    <Icon name="book" /> Dictionary
                 </button>
+                <button className={`tab-button ${activeTab === 'practice' ? 'active' : ''}`} onClick={() => setActiveTab('practice')}>
+                   <Icon name="model_training" /> Practice
+                </button>
                 <button className={`tab-button ${activeTab === 'vocabulary' ? 'active' : ''}`} onClick={() => setActiveTab('vocabulary')}>
                    <Icon name="category" /> Vocabulary
                 </button>
@@ -210,6 +387,7 @@ const App = () => {
 
             <main className="tab-content">
                 {activeTab === 'dictionary' && <Dictionary />}
+                {activeTab === 'practice' && <Practice />}
                 {activeTab === 'vocabulary' && <Vocabulary />}
             </main>
         </div>
