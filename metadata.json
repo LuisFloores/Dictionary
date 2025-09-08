@@ -1,7 +1,5 @@
 {
   "name": "Spanish-English Learning Hub",
-  "description": "An interactive dictionary and language learning tool for Spanish and English, featuring text correction, pronunciation practice, and thematic vocabulary.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "description": "An interactive dictionary and language learning tool for Spanish and English, featuring a bidirectional dictionary and thematic vocabulary lists.",
+  "requestFramePermissions": []
 }
